@@ -1,0 +1,61 @@
+#define BLYNK_TEMPLATE_ID "TMPL65qNStSGg"
+#define BLYNK_TEMPLATE_NAME "sensor ac relay 2"
+#define BLYNK_AUTH_TOKEN "ABOQb2fChP2YoaRxflcGzHrLJhrQ6fFG"
+
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+
+#define DHTPIN 4        // Pin DHT22 terhubung ke pin 2 pada ESP32
+#define DHTTYPE DHT22   // Tipe sensor DHT yang digunakan
+
+DHT dht(DHTPIN, DHTTYPE);
+BlynkTimer timer;
+
+char auth[] = "ABOQb2fChP2YoaRxflcGzHrLJhrQ6fFG" ; // Ganti dengan Auth Token dari proyek Blynk Anda
+
+bool acStatus = false; // Status awal AC (Hidup)
+int ACRelay = 5;      // Pin relay untuk AC
+
+unsigned long previousMillis = 0;
+const long interval = 500; // Interval waktu 0.5 detik
+
+void setup() {
+  Serial.begin(115200);
+  Blynk.begin(auth, "Wokwi-GUEST", "");
+  dht.begin();
+  pinMode(ACRelay, OUTPUT);
+  
+  digitalWrite(ACRelay, acStatus ? HIGH : LOW); // Nyalakan relay sesuai status AC
+}
+
+void updateDHTSensor() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    int humidity = dht.readHumidity();
+    int temperature = dht.readTemperature();
+
+    Blynk.virtualWrite(V2, humidity);      // Kirim data ke gauge kelembaban (V2)
+    Blynk.virtualWrite(V3, temperature);   // Kirim data ke gauge suhu (V3)
+
+    // Tampilkan suhu ruangan dan kelembaban pada konsol
+    Serial.println("Suhu Ruangan: " + String(temperature)+" °C" );
+    Serial.println("Kelembaban Ruangan: " + String(humidity)+" %");
+  }
+}
+
+BLYNK_WRITE(V5) { // Fungsi dipanggil ketika tombol switch di Blynk ditekan
+  acStatus = param.asInt(); // Update status AC berdasarkan nilai tombol switch
+  digitalWrite(ACRelay, acStatus ? HIGH : LOW); // Nyalakan atau matikan relay sesuai status AC
+  Serial.print("AC Status: ");
+  Serial.println(acStatus ? "Hidup" : "Mati");
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+  updateDHTSensor();
+}
